@@ -111,6 +111,12 @@ void Execute_Send_Addr(uint8_t Slave_ADDR)
 	I2C1_DR = Slave_ADDR;
 }
 
+void Execute_Read_Addr(uint8_t Slave_ADDR)
+{
+	Slave_ADDR = Slave_ADDR << 1;
+	Slave_ADDR |= 1;
+	I2C1_DR = Slave_ADDR;
+}
 void Clear_ADDR_Flag(void)
 {
 	uint32_t dummy = I2C1_SR1;
@@ -148,4 +154,72 @@ void I2C1_SendData(uint8_t *Data,uint8_t len,uint8_t Slave_ADDR)
 
 	//Generate stop condition
 	I2C_GenerateStop();
+}
+
+
+void I2C1_ReadData(uint8_t *Data,uint8_t len,uint8_t Slave_ADDR)
+{
+
+	//Generate Start Condition
+	I2C_GenerateStart();
+
+	//Check for SB flag in SR1
+	while(!(I2C1_SR1 & (1 << 0)));
+
+	//Send Address
+	Execute_Read_Addr(Slave_ADDR);
+
+	//Check for ADDR Flag
+	while(!(I2C1_SR1 & (1 << 1)));
+
+
+	if(len == 1)
+	{
+		//Clear ACK
+		I2C1_CR1 &= ~(1 << 10);
+
+		//Clear ADDR flag
+		Clear_ADDR_Flag();
+
+		//Wait until RXNE is 1
+		while(!(I2C1_SR1 & (1 << 6)));
+
+		//Generate stop condition
+		I2C_GenerateStop();
+
+		//Read data into buffer
+		*Data = I2C1_DR ;
+	}
+
+	if(len > 1)
+	{
+		//Clear ADDR flag
+		Clear_ADDR_Flag();
+
+		while(len > 0)
+		{
+			//Wait till RXNE is 1
+			while(!(I2C1_SR1 & (1 << 6)));
+
+			if(len == 2)
+			{
+				//Clear ACK bit
+				I2C1_CR1 &= ~(1 << 10);
+
+				//Generate STOP condition
+				I2C_GenerateStop();
+
+			}
+			//Read data into buffer
+			*Data = I2C1_DR ;
+
+			//increment buffer address
+			Data++;
+
+			//Decrement length
+			len--;
+		}
+	}
+	//Enable ACKing
+	I2C1_CR1 |= (1 << 10);
 }

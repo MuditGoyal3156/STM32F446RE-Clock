@@ -19,41 +19,65 @@
 #include <stdint.h>
 #include<stdio.h>
 #include <string.h>
+
 #include "UART.h"
 #include "I2C.h"
 #include "LCD.h"
 #include "Systick.h"
+#include "RTC.h"
 
 
-char rx_buf[]="Hello World";
-char time[]="Time(sec):";
-char time_str[10];
+char time_str[17];
+char date_str[17];
+
 int main(void)
 {
-	uint8_t time1 = 0;
-	I2C1_GPIO_Init();
-	I2C1_Init();
-	I2C1_EN();
-	LCD_Init();
+    DS1307_Time_t rtc;
 
+    /* -------- Init -------- */
+    I2C1_GPIO_Init();
+    I2C1_Init();
+    I2C1_EN();
 
-	while(1)
-	{
-		LCD_Command(Clear);
-		LCD_Set_Cursor(0, 0);
-		LCD_Send_Data(strlen(rx_buf), (uint8_t*)rx_buf);
-		LCD_Set_Cursor(1, 0);
-		LCD_Send_Data(strlen(time), (uint8_t*)time);
-		LCD_Set_Cursor(1, strlen(time)+1);
-		// Convert the integer 'time' to a string
-		  sprintf(time_str, "%d", time1);
+    LCD_Init();
+    DS1307_Init();
 
-		//Send the string (which now contains valid ASCII codes)
-		 LCD_Send_Data(strlen(time_str), (uint8_t*)time_str);
-		time1++;
-		systickDelayMs(1000);
+    /* ---- SET TIME ONCE (then comment) ---- */
+/*
+    rtc.sec   = 0;
+    rtc.min   = 27;
+    rtc.hour  = 22;   // 24-hour format
+    rtc.day   = 2;
+    rtc.date  = 26;
+    rtc.month = 12;
+    rtc.year  = 25;
+    DS1307_SetTime(&rtc);
+*/
 
-	}
+    while(1)
+    {
+        /* Read RTC */
+        DS1307_GetTime(&rtc);
+
+        /* Format time HH:MM:SS */
+        sprintf(time_str, "TIME %02d:%02d:%02d",
+                rtc.hour, rtc.min, rtc.sec);
+
+        /* Format date DD/MM/YY */
+        sprintf(date_str, "DATE %02d/%02d/%02d",
+                rtc.date, rtc.month, rtc.year);
+
+        /* Display */
+        LCD_Command(Clear);
+
+        LCD_Set_Cursor(0, 0);
+        LCD_Send_Data(strlen(time_str), (uint8_t*)time_str);
+
+        LCD_Set_Cursor(1, 0);
+        LCD_Send_Data(strlen(date_str), (uint8_t*)date_str);
+
+        systickDelayMs(1000);
+    }
 }
 
 
